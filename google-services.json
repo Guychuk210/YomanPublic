@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "84167712523",
+    "project_id": "yoman-f07f2",
+    "storage_bucket": "yoman-f07f2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:84167712523:android:7061bbd5d669e360548c0e",
+        "android_client_info": {
+          "package_name": "com.guylevy210.Yoman"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD6wPoDS-JgnFFIfhA6stSukfbFtEFUqk0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
