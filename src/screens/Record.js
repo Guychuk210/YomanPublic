@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { theme } from '../styles/theme';
+import { Audio } from 'expo-av';
+//import { useRouter } from 'expo-router';
 //import { transcribeAudio } from '../services/openai';
 import OpenAI from 'openai';
 
@@ -10,6 +12,9 @@ const Record = ({ navigation }) => {
   const [timer, setTimer] = useState(0);
   const [recording, setRecording] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  //const router = useRouter();
+
 
   //const openai = new OpenAI();
 
@@ -27,8 +32,8 @@ const Record = ({ navigation }) => {
     try {
       // Request permissions
       console.log("Requesting permissions");
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
+      const permissionResponse = await Audio.requestPermissionsAsync();
+      if (permissionResponse.status !== 'granted') {
         Alert.alert('Permission required', 'Please grant microphone access to record.');
         return;
       }
@@ -67,7 +72,9 @@ const Record = ({ navigation }) => {
       // Stop recording
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
-      console.log("Recording stopped and URI obtained");
+      console.log("stopRecording, uri:", uri);
+      setRecording(null);
+
       // Process the recording
       await processRecording(uri);
       console.log("Recording processed");
@@ -83,27 +90,50 @@ const Record = ({ navigation }) => {
 
   const processRecording = async (uri) => {
     try {
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      console.log("Audio file size:", fileInfo.size);
-      console.log("Audio file exists:", fileInfo.exists);
+        const fileInfo = await FileSystem.getInfoAsync(uri);
+        console.log("[Client] Audio file info:", {
+            size: fileInfo.size,
+            exists: fileInfo.exists,
+            uri: uri
+        });
 
-      // Create audio file object for OpenAI processing
-      const formData = new FormData();
-      formData.append('file', {
-        uri: uri,
-        type: 'audio/m4a',
-        name: 'recording.m4a'
-      });
-      console.log("Form data created");
+        // Create form data
+        const formData = new FormData();
+        formData.append('audioFile', {
+            uri: uri,
+            type: 'audio/m4a',
+            name: 'recording.m4a'
+        });
+        
+        // Use your computer's IP address instead of localhost
+        const serverUrl = 'http://192.168.10.119:5000/transcribe'; // Your IP
+        console.log('[Client] Sending request to:', serverUrl);
 
-      try{
-        const transcript = await transcribeAudio(formData);
-        console.log("Transcript:", transcript);
-      } catch (transcriptError) {
-        console.error("Error transcribing audio:", transcriptError);
-      }
+        // Send to your server
+        const response = await fetch(serverUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("[Client] Transcription received:", data);
+        
+        if (data.transcript) {
+            setTranscript(data.transcript);
+            console.log("Transcription:", data.transcript);
+            return data.transcript;
+        }
+
     } catch (error) {
-      console.error("Error processing recording:", error);
+        console.error("Error processing recording:", error);
+        Alert.alert('Transcription Error', 'Failed to transcribe audio');
     }
   };
 
@@ -145,6 +175,10 @@ const Record = ({ navigation }) => {
           : isRecording 
             ? 'Tap to stop' 
             : 'Tap to start recording'}
+      </Text>
+
+      <Text style={styles.transcriptText}>
+        {transcript && `Transcript: ${transcript}`}
       </Text>
     </View>
   );
@@ -206,7 +240,12 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.normal,
     color: theme.colors.textSecondary,
     fontWeight: '500',
-  }
+  },
+  transcriptText: {
+    marginTop: theme.spacing.large,
+    padding: theme.spacing.medium,
+    color: theme.colors.text,
+  },
 });
 
 export default Record;
