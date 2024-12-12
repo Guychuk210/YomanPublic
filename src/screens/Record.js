@@ -97,7 +97,6 @@ const Record = ({ navigation }) => {
             uri: uri
         });
 
-        // Create form data
         const formData = new FormData();
         formData.append('audioFile', {
             uri: uri,
@@ -105,11 +104,9 @@ const Record = ({ navigation }) => {
             name: 'recording.m4a'
         });
         
-        // Use your computer's IP address instead of localhost
-        const serverUrl = 'http://192.168.10.119:5000/transcribe'; // Your IP
+        const serverUrl = 'http://192.168.10.119:5000/transcribe';
         console.log('[Client] Sending request to:', serverUrl);
 
-        // Send to your server
         const response = await fetch(serverUrl, {
             method: 'POST',
             body: formData,
@@ -123,12 +120,12 @@ const Record = ({ navigation }) => {
         }
 
         const data = await response.json();
-        console.log("[Client] Transcription received:", data);
         
         if (data.transcript) {
             setTranscript(data.transcript);
             console.log("Transcription:", data.transcript);
-            return data.transcript;
+            navigation.navigate('AfterRecord', { transcript: data.transcript });
+            //return data.transcript;
         }
 
     } catch (error) {

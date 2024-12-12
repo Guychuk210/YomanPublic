@@ -11,6 +11,7 @@ import Register from '../screens/Register';
 import Home from '../screens/Home';
 import Settings from '../screens/Settings';
 import Record from '../screens/Record';
+import AfterRecord from '../screens/AfterRecord';
 
 const Stack = createNativeStackNavigator();
 
@@ -43,6 +44,18 @@ export default function Navigation() {
             <Stack.Screen name="Home" component={Home} />
             <Stack.Screen name="Settings" component={Settings} />
             <Stack.Screen name="Record" component={Record} />
+            <Stack.Screen 
+              name="AfterRecord" 
+              component={AfterRecord}
+              options={{
+                headerShown: true,
+                title: 'Review Your Entry',
+                // Add any other header options you want
+                headerBackTitle: 'Back',
+              }}
+              // Initialize default params if needed
+              initialParams={{ transcript: '' }}
+            />
           </>
         ) : (
           // Auth screens

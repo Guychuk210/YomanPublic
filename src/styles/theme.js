@@ -64,5 +64,14 @@ export const theme = {
       small: 8,
       medium: 12,
       large: 16,
-    }
+    },
+    
+    // Add radius definitions
+    radius: {
+      small: 4,
+      medium: 8,
+      large: 16,
+      xl: 24,
+      round: 999,
+    },
   };

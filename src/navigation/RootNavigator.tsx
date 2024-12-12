@@ -5,6 +5,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Login from '../screens/Login';
 import Register from '../screens/Register';
 import TabNavigator from './TabNavigator';
+import AfterRecord from '../screens/AfterRecord';
+import DiaryView from '../screens/DiaryView';
+import { theme } from '../styles/theme';
+
+console.log("I'm in the RootNavigator file");
 
 const Stack = createNativeStackNavigator();
 
@@ -20,6 +25,22 @@ const RootNavigator = () => {
         <Stack.Screen name="Login" component={Login} />
         <Stack.Screen name="Register" component={Register} />
         <Stack.Screen name="MainApp" component={TabNavigator} />
+        <Stack.Screen name="AfterRecord" component={AfterRecord} />
+        <Stack.Screen 
+          name="DiaryView" 
+          component={DiaryView}
+          options={{
+            headerShown: true,
+            title: 'Diary Entry',
+            headerStyle: {
+              backgroundColor: theme.colors.background,
+            },
+            headerTintColor: theme.colors.text,
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
