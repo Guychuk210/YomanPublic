@@ -2,6 +2,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Login from '../screens/Login';
 import Register from '../screens/Register';
 import TabNavigator from './TabNavigator';
@@ -15,34 +16,36 @@ const Stack = createNativeStackNavigator();
 
 const RootNavigator = () => {
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Login"
-        screenOptions={{
-          headerShown: false
-        }}
-      >
-        <Stack.Screen name="Login" component={Login} />
-        <Stack.Screen name="Register" component={Register} />
-        <Stack.Screen name="MainApp" component={TabNavigator} />
-        <Stack.Screen name="AfterRecord" component={AfterRecord} />
-        <Stack.Screen 
-          name="DiaryView" 
-          component={DiaryView}
-          options={{
-            headerShown: true,
-            title: 'Diary Entry',
-            headerStyle: {
-              backgroundColor: theme.colors.background,
-            },
-            headerTintColor: theme.colors.text,
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Login"
+          screenOptions={{
+            headerShown: false
           }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+        >
+          <Stack.Screen name="Login" component={Login} />
+          <Stack.Screen name="Register" component={Register} />
+          <Stack.Screen name="MainApp" component={TabNavigator} />
+          <Stack.Screen name="AfterRecord" component={AfterRecord} />
+          <Stack.Screen 
+            name="DiaryView" 
+            component={DiaryView}
+            options={{
+              headerShown: true,
+              title: 'Diary Entry',
+              headerStyle: {
+                backgroundColor: theme.colors.background,
+              },
+              headerTintColor: theme.colors.text,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 };
 

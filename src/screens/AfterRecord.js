@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { theme } from '../styles/theme';
-import { db, auth } from '../config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import BottomSheet, { 
+  BottomSheetView,
+  BottomSheetBackdrop
+} from '@gorhom/bottom-sheet';
 
 const DIARY_STYLES = [
   { id: 'casual', label: 'Casual & Friendly' },
@@ -16,6 +20,19 @@ const AfterRecord = ({ navigation, route }) => {
   const [editedTranscript, setEditedTranscript] = useState(transcript);
   const [selectedStyle, setSelectedStyle] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedStyleInfo, setSelectedStyleInfo] = useState(null);
+
+  // Define the ref
+  const bottomSheetRef = useRef(null);
+
+  // Define snap points
+  const snapPoints = useMemo(() => ['40%'], []);
+
+  // Handle style info
+  const handleStyleInfo = useCallback((style) => {
+    setSelectedStyleInfo(style);
+    bottomSheetRef.current?.expand();
+  }, []);
 
   const handleSubmit = async () => {
     if (!selectedStyle) {
@@ -78,51 +95,88 @@ const AfterRecord = ({ navigation, route }) => {
     }
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Review Your Entry</Text>
-      
-      <View style={styles.transcriptContainer}>
-        <Text style={styles.label}>Edit if needed:</Text>
-        <TextInput
-          style={styles.transcriptInput}
-          multiline
-          value={editedTranscript}
-          onChangeText={setEditedTranscript}
-          placeholder="Your transcribed text appears here"
-        />
-      </View>
-
-      <View style={styles.styleSection}>
-        <Text style={styles.label}>Choose your diary style:</Text>
-        <View style={styles.styleButtons}>
-          {DIARY_STYLES.map((style) => (
-            <TouchableOpacity
-              key={style.id}
-              style={[
-                styles.styleButton,
-                selectedStyle === style.id && styles.selectedStyle
-              ]}
-              onPress={() => setSelectedStyle(style.id)}
-            >
-              <Text style={[
-                styles.styleButtonText,
-                selectedStyle === style.id && styles.selectedStyleText
-              ]}>
-                {style.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.submitButton}
-        onPress={handleSubmit}
+  const renderStyleButton = (style) => (
+    <View key={style.id} style={styles.styleButtonContainer}>
+      <TouchableOpacity
+        style={[
+          styles.styleButton,
+          selectedStyle === style.id && styles.selectedStyle
+        ]}
+        onPress={() => setSelectedStyle(style.id)}
       >
-        <Text style={styles.submitButtonText}>Create Diary Entry</Text>
+        <Text style={[
+          styles.styleButtonText,
+          selectedStyle === style.id && styles.selectedStyleText
+        ]}>
+          {style.label}
+        </Text>
       </TouchableOpacity>
-    </ScrollView>
+      <TouchableOpacity
+        style={styles.infoButton}
+        onPress={() => handleStyleInfo(style)}
+      >
+        <Ionicons 
+          name="information-circle-outline" 
+          size={24} 
+          color={theme.colors.primary} 
+        />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <ScrollView style={{ flex: 1 }}>
+          <Text style={styles.title}>Review Your Entry</Text>
+          
+          <View style={styles.transcriptContainer}>
+            <Text style={styles.label}>Edit if needed:</Text>
+            <TextInput
+              style={styles.transcriptInput}
+              multiline
+              value={editedTranscript}
+              onChangeText={setEditedTranscript}
+              placeholder="Your transcribed text appears here"
+            />
+          </View>
+
+          <View style={styles.styleSection}>
+            <Text style={styles.label}>Choose your diary style:</Text>
+            <View style={styles.styleButtons}>
+              {DIARY_STYLES.map(renderStyleButton)}
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.submitButton}
+            onPress={handleSubmit}
+            disabled={isGenerating}
+          >
+            <Text style={styles.submitButtonText}>
+              {isGenerating ? 'Creating...' : 'Create Diary Entry'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={-1}
+          snapPoints={snapPoints}
+          enablePanDownToClose={true}
+          backgroundStyle={styles.bottomSheetBackground}
+        >
+          <BottomSheetView style={styles.bottomSheetContent}>
+            <Text style={styles.bottomSheetTitle}>
+              {selectedStyleInfo?.label}
+            </Text>
+            <Text style={styles.bottomSheetDescription}>
+              {selectedStyleInfo?.description}
+            </Text>
+          </BottomSheetView>
+        </BottomSheet>
+      </View>
+    </GestureHandlerRootView>
   );
 };
 
@@ -159,20 +213,21 @@ const styles = StyleSheet.create({
   styleSection: {
     marginBottom: theme.spacing.xl,
   },
-  styleButtons: {
+  styleButtonContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: theme.spacing.small,
+    alignItems: 'center',
+    flex: 1,
+    minWidth: '45%',
+    marginBottom: theme.spacing.small,
   },
   styleButton: {
+    flex: 1,
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.medium,
     padding: theme.spacing.medium,
-    marginBottom: theme.spacing.small,
-    flex: 1,
-    minWidth: '45%',
     alignItems: 'center',
+    marginRight: 8,
   },
   selectedStyle: {
     backgroundColor: theme.colors.primary,
@@ -196,6 +251,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: theme.fontSize.normal,
     fontWeight: 'bold',
+  },
+  styleButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: theme.spacing.small,
+  },
+  infoButton: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
