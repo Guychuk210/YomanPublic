@@ -27,9 +27,9 @@ const DIARY_STYLES = [
     description: "Example:\n\nOn this Wednesday afternoon, I attended a significant meeting with the project stakeholders. The discussion proved to be highly productive, as we successfully outlined our quarterly objectives and established clear metrics for success. Notable progress was made in addressing our primary concerns, particularly regarding resource allocation and timeline management."
   },
   {
-    id: 'poetic',
-    label: 'Poetice',
-    description: "Example:\n\nSunlight dances through autumn leaves,\nPainting shadows on my morning coffee.\nThoughts drift like scattered petals,\nCarrying memories of yesterday's laughter\nAnd tomorrow's dreams.\nIn this moment, I am both\nThe observer and the observed,\nWriting stories in the margins of time."
+    id: 'raw',
+    label: 'Raw',
+    description: "Example:\n\nThe entry will be exactly what you say, no editing or formatting."
   },
   {
     id: 'reflective',
@@ -39,8 +39,8 @@ const DIARY_STYLES = [
 ];
 
 const AfterRecord = ({ navigation, route }) => {
-  const { transcript } = route.params;
-  const [editedTranscript, setEditedTranscript] = useState(transcript);
+  const { transcript, type } = route.params;
+  const [editedTranscript, setEditedTranscript] = useState(transcript || '');
   const [selectedStyle, setSelectedStyle] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedStyleInfo, setSelectedStyleInfo] = useState(null);
@@ -191,7 +191,7 @@ const AfterRecord = ({ navigation, route }) => {
               multiline
               value={editedTranscript}
               onChangeText={setEditedTranscript}
-              placeholder="Your transcribed text appears here"
+              placeholder="Start writing your diary entry..."
             />
           </View>
 

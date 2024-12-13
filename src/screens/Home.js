@@ -106,27 +106,24 @@ const Home = ({ navigation }) => {
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.actionButtons}>
         <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => navigation.navigate('NewEntry')}
+          style={styles.newEntryButton}
+          onPress={() => navigation.navigate('AfterRecord', {
+            type: 'direct',
+            transcript: ''
+          })}
         >
-          <View style={[styles.actionIcon, styles.newEntryGradient]}>
-            <Ionicons name="pencil" size={24} color="white" />
-          </View>
-          <Text style={styles.actionLabel}>New Entry</Text>
+          <Ionicons name="create" size={24} color={theme.colors.primary} />
+          <Text style={styles.newEntryText}>New Entry</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <View style={[styles.actionIcon, styles.voiceNoteGradient]}>
-            <Ionicons name="mic" size={24} color="white" />
-          </View>
-          <Text style={styles.actionLabel}>Voice Note</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.actionButton}>
-          <View style={[styles.actionIcon, styles.photoEntryGradient]}>
-            <Ionicons name="images" size={24} color="white" />
-          </View>
-          <Text style={styles.actionLabel}>Photo Entry</Text>
+        <TouchableOpacity 
+          style={styles.newEntryButton}
+          onPress={() => navigation.navigate('Record', {
+            autoStart: true  // This flag will tell Record.js to start recording immediately
+          })}
+        >
+          <Ionicons name="mic" size={24} color={theme.colors.primary} />
+          <Text style={styles.newEntryText}>Voice Note</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -250,6 +247,29 @@ const styles = StyleSheet.create({
   actionLabel: {
     color: theme.colors.textSecondary,
     fontSize: 14,
+  },
+  newEntryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    padding: 16,
+    marginHorizontal: 20,
+    marginVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  newEntryText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
 });
 

@@ -12,7 +12,7 @@ const LOCAL_URL = 'http://192.168.10.119:5000';
 const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
 //const API_URL = RENDER_URL
 
-const Record = ({ navigation }) => {
+const Record = ({ navigation, route }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [timer, setTimer] = useState(0);
   const [recording, setRecording] = useState(null);
@@ -24,6 +24,13 @@ const Record = ({ navigation }) => {
   //const openai = new OpenAI();
 
   useEffect(() => {
+    const autoStart = route.params?.autoStart;
+    if (autoStart) {
+      startRecording();
+    }
+  }, []);
+
+  useEffect(() => {
     let interval;
     if (isRecording) {
       interval = setInterval(() => {
@@ -33,34 +40,29 @@ const Record = ({ navigation }) => {
     return () => clearInterval(interval);
   }, [isRecording]);
 
+
   const startRecording = async () => {
     try {
-      // Request permissions
       console.log("Requesting permissions");
       const permissionResponse = await Audio.requestPermissionsAsync();
       if (permissionResponse.status !== 'granted') {
         Alert.alert('Permission required', 'Please grant microphone access to record.');
         return;
       }
-      console.log("Permissions granted");
 
-      // Configure audio with simpler settings
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
-      console.log("Audio mode set");
 
-      // Create recording
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
       
-      console.log("Recording created");
       setRecording(recording);
       setIsRecording(true);
       setTimer(0);
-      console.log("Recording started");
+      console.log("Recording started automatically");
     } catch (err) {
       console.error("Recording error:", err);
       Alert.alert('Failed to start recording', err.message);
