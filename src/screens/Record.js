@@ -7,6 +7,11 @@ import { Audio } from 'expo-av';
 //import { transcribeAudio } from '../services/openai';
 import OpenAI from 'openai';
 
+const RENDER_URL = 'https://yoman-server.onrender.com';
+const LOCAL_URL = 'http://192.168.10.119:5000';
+const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
+//const API_URL = RENDER_URL
+
 const Record = ({ navigation }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [timer, setTimer] = useState(0);
@@ -39,23 +44,25 @@ const Record = ({ navigation }) => {
       }
       console.log("Permissions granted");
 
-      // Configure audio
+      // Configure audio with simpler settings
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
       console.log("Audio mode set");
 
-      // Start recording
+      // Create recording
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
+      
       console.log("Recording created");
       setRecording(recording);
       setIsRecording(true);
       setTimer(0);
       console.log("Recording started");
     } catch (err) {
+      console.error("Recording error:", err);
       Alert.alert('Failed to start recording', err.message);
     }
   };
@@ -104,7 +111,7 @@ const Record = ({ navigation }) => {
             name: 'recording.m4a'
         });
         
-        const serverUrl = 'http://192.168.10.119:5000/transcribe';
+        const serverUrl = `${API_URL}/transcribe`;
         console.log('[Client] Sending request to:', serverUrl);
 
         const response = await fetch(serverUrl, {

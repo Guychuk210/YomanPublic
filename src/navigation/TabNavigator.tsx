@@ -3,8 +3,9 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/Home';
-import Record from '../screens/Record';  // Changed from RecordScreen
-import Settings from '../screens/Settings';  // Changed from SettingsScreen
+import Record from '../screens/Record';
+import Settings from '../screens/Settings';
+import Diary from '../screens/Diary';
 import { theme } from '../styles/theme';
 
 const Tab = createBottomTabNavigator();
@@ -22,19 +23,19 @@ const TabNavigator = () => {
         },
         headerTitle: '',
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
+          let iconName = 'help-outline';
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Diary') {
+            iconName = focused ? 'book' : 'book-outline';
           } else if (route.name === 'Record') {
             iconName = focused ? 'mic' : 'mic-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
-          } else {
-            iconName = 'help-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName as keyof typeof Ionicons.glyphMap} size={size} color={color} />;
         },
       })}
     > 
@@ -43,6 +44,13 @@ const TabNavigator = () => {
         component={HomeScreen}
         options={{
           title: 'Home',
+        }}
+      />
+      <Tab.Screen 
+        name="Diary"
+        component={Diary}
+        options={{
+          title: 'Diary',
         }}
       />
       <Tab.Screen 
