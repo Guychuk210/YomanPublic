@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Animated, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Animated, TextInput, Alert, Keyboard } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
-import { collection, query, orderBy, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { useNavigation } from '@react-navigation/native';
+import { RectButton } from 'react-native-gesture-handler';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 
 const Diary = () => {
   // State management
@@ -17,7 +19,9 @@ const Diary = () => {
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' or 'asc'
   const [editingId, setEditingId] = useState(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [originalTitle, setOriginalTitle] = useState('');
   const navigation = useNavigation();
+  const [activeSwipeRef, setActiveSwipeRef] = useState(null);
 
   // Initialize animation value based on initial view mode
   const [toggleAnimation] = useState(new Animated.Value(viewMode === 'list' ? 0 : 1));
@@ -223,6 +227,8 @@ const Diary = () => {
       contentContainerStyle={styles.listContainer}
       onRefresh={fetchEntries}
       refreshing={false}
+      keyboardShouldPersistTaps="handled"
+      removeClippedSubviews={false}
     />
   );
 
@@ -288,75 +294,155 @@ const Diary = () => {
     }
   };
 
-  // Render individual entry item
-  const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.entryCard}
-      onPress={() => navigation.navigate('DiaryView', {
-        id: item.id,
-        title: item.title || 'Untitled Entry',
-        date: item.date,
-        timeOfDay: item.timeOfDay,
-        diaryEntry: item.generatedEntry,
-        createdAt: item.createdAt,
-      })}
+  const deleteEntry = async (id) => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        Alert.alert('Error', 'You must be logged in to delete entries');
+        return;
+      }
+
+      await deleteDoc(doc(db, 'users', userId, 'diaries', id));
+      
+      // Update local state
+      setEntries(prevEntries => prevEntries.filter(entry => entry.id !== id));
+      
+      // Close any open swipe actions
+      if (activeSwipeRef) {
+        activeSwipeRef.close();
+        setActiveSwipeRef(null);
+      }
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      Alert.alert('Error', 'Failed to delete entry');
+    }
+  };
+
+  const handleDelete = (id) => {
+    Alert.alert(
+      'Delete Entry',
+      'Are you sure you want to delete this entry?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => deleteEntry(id)
+        }
+      ]
+    );
+  };
+
+  const renderRightActions = useCallback((progress, dragX, item) => {
+    const scale = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [1, 0],
+      extrapolate: 'clamp',
+    });
+
+    return (
+      <RectButton
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id)}
+      >
+        <Animated.View style={[styles.deleteButtonContent, { transform: [{ scale }] }]}>
+          <Ionicons name="trash-outline" size={30} color="red" />
+        </Animated.View>
+      </RectButton>
+    );
+  }, []);
+
+  // Memoize the renderItem function
+  const renderItem = useCallback(({ item }) => (
+    <Swipeable
+      ref={ref => {
+        if (ref && item.id === editingId) {
+          setActiveSwipeRef(ref);
+        }
+      }}
+      renderRightActions={(progress, dragX) => 
+        renderRightActions(progress, dragX, item)
+      }
+      rightThreshold={-80}
+      overshootRight={false}  // Prevent full swipe
     >
-      <View style={styles.entryContent}>
-        {editingId === item.id ? (
-          // Edit mode
-          <View style={styles.editContainer}>
-            <TextInput
-              style={styles.editInput}
-              value={editingTitle}
-              onChangeText={setEditingTitle}
-              autoFocus
-              onBlur={() => {
-                setEditingId(null);
-                setEditingTitle('');
-              }}
-            />
-            <View style={styles.editButtons}>
-              <TouchableOpacity 
-                onPress={() => {
+      <TouchableOpacity 
+        style={styles.entryCard}
+        onPress={() => {
+          if (editingId) {
+            setEditingId(null);
+            setEditingTitle(originalTitle);
+          } else {
+            navigation.navigate('DiaryView', {
+              id: item.id,
+              title: item.title || 'Untitled Entry',
+              date: item.date,
+              timeOfDay: item.timeOfDay,
+              diaryEntry: item.generatedEntry,
+              createdAt: item.createdAt,
+            });
+          }
+        }}
+      >
+        <View style={styles.entryContent}>
+          {editingId === item.id ? (
+            // Edit mode
+            <View style={styles.editContainer}>
+              <TextInput
+                style={styles.editInput}
+                value={editingTitle}
+                onChangeText={text => setEditingTitle(text)}
+                onBlur={() => {
                   setEditingId(null);
-                  setEditingTitle('');
+                  setEditingTitle(originalTitle);
                 }}
-                style={styles.editButton}
-              >
-                <Ionicons name="close" size={20} color={theme.colors.error} />
-              </TouchableOpacity>
+                autoFocus
+                returnKeyType="done"
+              />
               <TouchableOpacity 
-                onPress={() => updateEntryTitle(item.id, editingTitle)}
-                style={styles.editButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  if (editingTitle.trim() !== '') {
+                    updateEntryTitle(item.id, editingTitle);
+                    setOriginalTitle('');
+                  }
+                  setEditingId(null);
+                }}
+                style={styles.checkIcon}
               >
-                <Ionicons name="checkmark" size={20} color={theme.colors.primary} />
+                <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
               </TouchableOpacity>
             </View>
-          </View>
-        ) : (
-          // View mode
-          <View style={styles.titleContainer}>
-            <Text style={styles.entryTitle}>
-              {item.title || 'Untitled Entry'}
-            </Text>
-            <TouchableOpacity 
-              onPress={() => {
-                console.log('Edit icon pressed for entry:', item.id);
-                setEditingId(item.id);
-                setEditingTitle(item.title || '');
-              }}
-              style={styles.editIcon}
-            >
-              <Ionicons name="pencil" size={16} color={theme.colors.primary} />
-            </TouchableOpacity>
-          </View>
-        )}
-        <Text style={styles.entryDetails}>
-          {item.dayOfWeek} {item.timeOfDay} • {item.date}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+          ) : (
+            // View mode
+            <View style={styles.titleContainer}>
+              <Text 
+                style={styles.entryTitle}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.title || 'Untitled Entry'}
+              </Text>
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setEditingId(item.id);
+                  setEditingTitle(item.title || '');
+                  setOriginalTitle(item.title || '');
+                }}
+                style={styles.editIcon}
+              >
+                <Ionicons name="pencil" size={16} color={theme.colors.primary} />
+              </TouchableOpacity>
+            </View>
+          )}
+          <Text style={styles.entryDetails}>
+            {item.dayOfWeek} {item.timeOfDay} • {item.date}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
+  ), [editingId, editingTitle, originalTitle, navigation]);
 
   // Sort button component
   const SortButton = () => (
@@ -385,7 +471,20 @@ const Diary = () => {
         </View>
       </View>
 
-      {viewMode === 'list' ? <ListView /> : <CalendarView />}
+      {viewMode === 'list' ? (
+        <FlatList
+          data={entries}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContainer}
+          onRefresh={fetchEntries}
+          refreshing={false}
+          keyboardShouldPersistTaps="handled"
+          removeClippedSubviews={false}
+        />
+      ) : (
+        <CalendarView />
+      )}
     </View>
   );
 };
@@ -447,13 +546,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   listContainer: {
-    padding: 16,
+    padding: 20,
   },
   entryCard: {
     backgroundColor: '#FFF9F0',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    marginHorizontal: 2,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -470,12 +570,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
   entryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#2C3E50',
+    flex: 1,
+    marginRight: 8,
   },
   entryDetails: {
     fontSize: 14,
@@ -528,12 +629,6 @@ const styles = StyleSheet.create({
   editIcon: {
     padding: 8,
   },
-  editContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
   editInput: {
     flex: 1,
     fontSize: 18,
@@ -542,14 +637,29 @@ const styles = StyleSheet.create({
     padding: 4,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.primary,
+    minHeight: 30,
+    marginRight: 8, // Add space between input and check icon
   },
-  editButtons: {
+  editContainer: {
     flexDirection: 'row',
-    marginLeft: 8,
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  editButton: {
-    padding: 8,
-    marginLeft: 4,
+  checkIcon: {
+    padding: 4,
+  },
+  deleteButton: {
+    width: 80,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  deleteButtonContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
