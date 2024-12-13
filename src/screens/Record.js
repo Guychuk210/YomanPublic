@@ -12,25 +12,16 @@ const LOCAL_URL = 'http://192.168.10.119:5000';
 const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
 //const API_URL = RENDER_URL
 
-const Record = ({ navigation, route }) => {
+const Record = ({ navigation }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [timer, setTimer] = useState(0);
   const [recording, setRecording] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
-  //const router = useRouter();
-
-
-  //const openai = new OpenAI();
-
-  useEffect(() => {
-    const autoStart = route.params?.autoStart;
-    if (autoStart) {
-      startRecording();
-    }
-  }, []);
-
-  useEffect(() => {
+  
+  
+  
+useEffect(() => {
     let interval;
     if (isRecording) {
       interval = setInterval(() => {

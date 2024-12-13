@@ -106,7 +106,7 @@ const AfterRecord = ({ navigation, route }) => {
       
       // Navigate back to MainApp and then to the Home tab
       navigation.navigate('MainApp', {
-        screen: 'Home'
+        screen: 'Diary'
       });
 
     } catch (error) {

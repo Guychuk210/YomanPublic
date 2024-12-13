@@ -112,17 +112,15 @@ const Home = ({ navigation }) => {
             transcript: ''
           })}
         >
-          <Ionicons name="create" size={24} color={theme.colors.primary} />
+          <Ionicons name="add-circle" size={24} color={theme.colors.primary} />
           <Text style={styles.newEntryText}>New Entry</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.newEntryButton}
-          onPress={() => navigation.navigate('Record', {
-            autoStart: true  // This flag will tell Record.js to start recording immediately
-          })}
+          onPress={() => navigation.navigate('Record')}
         >
-          <Ionicons name="mic" size={24} color={theme.colors.primary} />
+          <Ionicons name="add-circle" size={24} color={theme.colors.primary} />
           <Text style={styles.newEntryText}>Voice Note</Text>
         </TouchableOpacity>
       </View>
