@@ -8,12 +8,12 @@ import BottomSheet, {
   BottomSheetBackdrop
 } from '@gorhom/bottom-sheet';
 import { db, auth } from '../config/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc, setDoc } from 'firebase/firestore';
 
 const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.119:5000';
-const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
-//const API_URL = RENDER_URL;
+const LOCAL_URL = 'http://192.168.10.68:5000';
+//const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
+const API_URL = LOCAL_URL;
 
 const DIARY_STYLES = [
   {
@@ -58,17 +58,26 @@ const AfterRecord = ({ navigation, route }) => {
   }, []);
 
   const handleSubmit = async () => {
-
     if (!selectedStyle) {
       Alert.alert('Style Required', 'Please select a diary style');
       return;
     }
 
-    console.log('Submitting with style:', selectedStyle);
     setIsGenerating(true);
-    
 
     try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get user's assistant ID from Firestore
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      const assistantId = userDoc.data()?.assistantId;
+
+      console.log('IM HERE1');
+
+      // Generate diary entry
       const response = await fetch(`${API_URL}/generate-diary`, {
         method: 'POST',
         headers: {
@@ -77,34 +86,39 @@ const AfterRecord = ({ navigation, route }) => {
         body: JSON.stringify({
           text: editedTranscript,
           style: selectedStyle,
+          assistantId: assistantId // Pass existing assistantID if available
         }),
       });
+
+      console.log('IM HERE2');
 
       if (!response.ok) {
         throw new Error('Failed to generate diary entry');
       }
 
       const data = await response.json();
-      console.log('Diary entry generated:', data.entry);
-      
-      // Save to Firestore
-      const userId = auth.currentUser?.uid;
-      if (!userId) {
-        throw new Error('User not authenticated');
+
+     
+      // If this is the first time, save the assistantID
+      if (!assistantId && data.assistantId) {
+        await setDoc(doc(db, 'users', userId), {
+          assistantId: data.assistantId
+        }, { merge: true });
       }
 
-      const diaryRef = await addDoc(collection(db, 'users', userId, 'diaries'), {
+      console.log('userID', userId);
+      console.log('data.assistantId', data.assistantId);
+
+      // Save diary entry to Firestore
+      await addDoc(collection(db, 'users', userId, 'diaries'), {
         originalText: editedTranscript,
         generatedEntry: data.entry,
         title: data.title,
         style: selectedStyle,
         createdAt: serverTimestamp(),
-        // You can add more fields here as needed
       });
 
-      console.log('Diary entry saved with ID:', diaryRef.id);
-      
-      // Navigate back to MainApp and then to the Home tab
+      // Navigate back to MainApp
       navigation.navigate('MainApp', {
         screen: 'Diary'
       });

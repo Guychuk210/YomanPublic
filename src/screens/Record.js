@@ -8,9 +8,9 @@ import { Audio } from 'expo-av';
 import OpenAI from 'openai';
 
 const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.119:5000';
-const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
-//const API_URL = RENDER_URL
+const LOCAL_URL = 'http://192.168.10.68:5000';
+//const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
+const API_URL = LOCAL_URL;
 
 const Record = ({ navigation }) => {
   const [isRecording, setIsRecording] = useState(false);
