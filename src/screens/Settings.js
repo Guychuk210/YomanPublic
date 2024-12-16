@@ -7,9 +7,10 @@ import { signOut } from 'firebase/auth';
 import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { GradientBackground } from '../components/GradientBackground';
 
 const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.68:5000';
+const LOCAL_URL = 'http://192.168.10.119:5000';
 const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
 //const API_URL = LOCAL_URL; // or use appropriate URL based on environment
 
@@ -52,34 +53,15 @@ const Settings = ({ navigation }) => {
         return;
       }
 
-      // Show loading state
-      Alert.alert("Loading", "Fetching assistant memory...");
-
-      const response = await fetch(`${API_URL}/assistant-memory/${assistantId}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch memory');
-      }
-
-      // Show the memory data in a formatted alert
-      Alert.alert(
-        "Assistant Memory",
-        `Name: ${data.assistant.name}\n\n` +
-        `Created: ${new Date(data.assistant.created * 1000).toLocaleDateString()}\n\n` +
-        `What I Know About You:\n${data.memory}`,
-        [
-          {
-            text: "OK",
-            style: "default"
-          }
-        ],
-        { cancelable: true }
-      );
+      // Navigate to Memory screen with assistantId
+      navigation.navigate('Memory', { 
+        assistantId: assistantId,
+        created: user.metadata.creationTime
+      });
 
     } catch (error) {
       console.error('Error showing memory:', error);
-      Alert.alert('Error', 'Failed to retrieve memory data');
+      Alert.alert('Error', 'Failed to access memory data');
     }
   };
 
@@ -117,48 +99,51 @@ const Settings = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
+      <GradientBackground />
+      <View style={styles.content}>
+        <Text style={styles.title}>Settings</Text>
 
-      <View style={styles.userSection}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.userInfo}>
-          <Text style={styles.label}>Logged in as:</Text>
-          <Text style={styles.email}>{userEmail}</Text>
+        <View style={styles.userSection}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.userInfo}>
+            <Text style={styles.label}>Logged in as:</Text>
+            <Text style={styles.email}>{userEmail}</Text>
+          </View>
         </View>
+
+        <View style={styles.memorySection}>
+          <Text style={styles.sectionTitle}>Memory Management</Text>
+          <View style={styles.memoryInfo}>
+            <Text style={styles.label}>Memory Status:</Text>
+            <Text style={styles.memoryStatus}>
+              {assistantId ? 'Active' : 'Not initialized'}
+            </Text>
+          </View>
+          
+          <View style={styles.memoryButtons}>
+            <TouchableOpacity 
+              style={styles.showButton} 
+              onPress={handleShowMemory}
+            >
+              <Text style={styles.showButtonText}>Show Me</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.clearButton} 
+              onPress={handleClearMemory}
+            >
+              <Text style={styles.clearButtonText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.signOutButton} 
+          onPress={handleSignOut}
+        >
+          <Text style={styles.buttonText}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
-
-      <View style={styles.memorySection}>
-        <Text style={styles.sectionTitle}>Memory Management</Text>
-        <View style={styles.memoryInfo}>
-          <Text style={styles.label}>Memory Status:</Text>
-          <Text style={styles.memoryStatus}>
-            {assistantId ? 'Active' : 'Not initialized'}
-          </Text>
-        </View>
-        
-        <View style={styles.memoryButtons}>
-          <TouchableOpacity 
-            style={styles.showButton} 
-            onPress={handleShowMemory}
-          >
-            <Text style={styles.showButtonText}>Show Me</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.clearButton} 
-            onPress={handleClearMemory}
-          >
-            <Text style={styles.clearButtonText}>Clear</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.signOutButton} 
-        onPress={handleSignOut}
-      >
-        <Text style={styles.buttonText}>Sign Out</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -166,14 +151,18 @@ const Settings = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    padding: theme.spacing.large,
+  },
+  content: {
+    flex: 1,
+    zIndex: 2,
+    paddingHorizontal: '5%',
   },
   title: {
     fontSize: theme.fontSize.title,
     fontWeight: 'bold',
     color: theme.colors.text,
     marginBottom: theme.spacing.xl,
+    marginTop: theme.spacing.xl,
   },
   userSection: {
     backgroundColor: theme.colors.cardBg,
@@ -250,10 +239,12 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.normal,
   },
   signOutButton: {
-    backgroundColor: theme.colors.danger,
+    backgroundColor: 'black',
     padding: theme.spacing.medium,
     borderRadius: theme.borderRadius.medium,
     ...theme.shadows.small,
+    width: '40%',
+    alignSelf: 'center',
   },
   buttonText: {
     color: theme.colors.background,

@@ -1,13 +1,18 @@
 // src/screens/Home.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, ScrollView, TouchableOpacity, StyleSheet, FlatList, SafeAreaView, StatusBar, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { auth, db } from '../config/firebase';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
+import Svg, { Ellipse, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { CustomText as Text } from '../components/CustomText';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const Home = ({ navigation }) => {
   const [streakCount, setStreakCount] = useState(0);
+  const [selectedWeek, setSelectedWeek] = useState(0);
+  const [weekEntries, setWeekEntries] = useState({});
 
   // Calculate streak from entries
   const calculateStreak = (entries) => {
@@ -84,7 +89,8 @@ const Home = ({ navigation }) => {
   // Fetch streak on component mount and when entries change
   useEffect(() => {
     fetchStreakCount();
-  }, []);
+    fetchWeekEntries(selectedWeek);
+  }, [selectedWeek]);
 
   // Streak Card Component
   const StreakCard = () => (
@@ -127,27 +133,183 @@ const Home = ({ navigation }) => {
     </View>
   );
 
-  return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.greeting}>Hey, {auth.currentUser?.displayName || 'there'} 👋</Text>
-        <Text style={styles.date}>{new Date().toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          month: 'long', 
-          day: 'numeric' 
-        })}</Text>
-      </View>
+  const WeekNavigator = () => (
+    <View style={styles.weekNavigator}>
+      <TouchableOpacity 
+        onPress={() => setSelectedWeek(prev => prev - 1)}
+        style={styles.weekNavButton}
+      >
+        <Ionicons name="chevron-back" size={24} color={theme.colors.textSecondary} />
+      </TouchableOpacity>
+      <TouchableOpacity 
+        onPress={() => setSelectedWeek(prev => prev + 1)}
+        style={styles.weekNavButton}
+      >
+        <Ionicons name="chevron-forward" size={24} color={theme.colors.textSecondary} />
+      </TouchableOpacity>
+    </View>
+  );
 
-      <StreakCard />
-      <QuickActions />
-    </ScrollView>
+  const WeekBar = () => {
+    const getFiveDays = () => {
+      const days = [];
+      const now = new Date();
+      
+      // Add 3 previous days
+      for (let i = -3; i < 0; i++) {
+        const date = new Date(now);
+        date.setDate(now.getDate() + i);
+        days.push(date);
+      }
+      
+      // Add current day
+      days.push(now);
+      
+      // Add next day
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      days.push(tomorrow);
+      
+      return days;
+    };
+
+    const renderDay = ({ item: date }) => {
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+      const dayNumber = date.getDate();
+      const isToday = new Date().toDateString() === date.toDateString();
+      const dateString = date.toISOString().split('T')[0];
+      const hasEntry = weekEntries[dateString];
+
+      return (
+        <View style={[
+          styles.dayContainer,
+          isToday && styles.todayContainer
+        ]}>
+          <Text style={[
+            styles.dayName,
+            isToday && styles.todayText
+          ]}>{dayName}</Text>
+          <Text style={[
+            styles.dayNumber,
+            isToday && styles.todayText
+          ]}>{dayNumber}</Text>
+          {hasEntry && (
+            <View style={styles.checkMark}>
+              <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+            </View>
+          )}
+        </View>
+      );
+    };
+
+    return (
+      <View style={styles.weekBarContainer}>
+        <FlatList
+          horizontal
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          data={getFiveDays()}
+          renderItem={renderDay}
+          keyExtractor={(item) => item.toISOString()}
+          contentContainerStyle={styles.weekBarContent}
+        />
+      </View>
+    );
+  };
+
+  const fetchWeekEntries = async (weekOffset = 0) => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - startDate.getDay() + (weekOffset * 7));
+      startDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 7);
+
+      const diariesRef = collection(db, 'users', userId, 'diaries');
+      const q = query(
+        diariesRef,
+        orderBy('createdAt'),
+        where('createdAt', '>=', startDate),
+        where('createdAt', '<', endDate)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const entries = {};
+      
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const date = data.createdAt.toDate().toISOString().split('T')[0];
+        entries[date] = true;
+      });
+
+      setWeekEntries(entries);
+    } catch (error) {
+      console.error('Error fetching week entries:', error);
+    }
+  };
+
+  const BackgroundShapes = () => {
+    return (
+      <View style={styles.backgroundShapes}>
+        <Svg height="100%" width="100%" style={styles.shapeSvg}>
+          <Defs>
+            <SvgGradient id="grad" x1="0" y1="1" x2="0" y2="0">
+              <Stop offset="0" stopColor='#fdf5e6' stopOpacity="0.4" />
+              <Stop offset="1" stopColor={theme.colors.secondary} stopOpacity="0.91" />
+            </SvgGradient>
+          </Defs>
+          <Ellipse
+            cx="5%"
+            cy="90%"
+            rx="450"
+            ry="170"
+            fill="url(#grad)"
+          />
+        </Svg>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar 
+        barStyle="dark-content"
+        backgroundColor='transparent'  // make it transparent
+        translucent={true}  // allow content to render behind status bar
+      />
+      <LinearGradient
+        colors={[
+          theme.colors.background, 
+          theme.colors.cardBg, 
+          theme.colors.background
+        ]}
+        style={styles.gradientBackground}
+      />
+      <BackgroundShapes />
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Hey, {auth.currentUser?.displayName || 'there'} 👋</Text>
+          <Text style={styles.date}>{new Date().toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            month: 'long', 
+            day: 'numeric' 
+          })}</Text>
+        </View>
+        <WeekBar />
+        <StreakCard />
+        <QuickActions />
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
   },
   header: {
     padding: 20,
@@ -211,11 +373,14 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent:'center',
+    marginHorizontal:'5%'
   },
   actionButton: {
     alignItems: 'center',
     flex: 1,
+    padding:'5%',
+    marginHorizontal:'5%'
   },
   actionIcon: {
     width: 50,
@@ -268,6 +433,80 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.primary,
     fontWeight: '600',
+  },
+  weekBarContainer: {
+    marginVertical: 10,
+    height: 80,
+  },
+  weekBarContent: {
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  dayContainer: {
+    width: (Dimensions.get('window').width - 40) / 5, // Divide by 5 for 5 days
+    height: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 2,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surface,
+    padding: 5,
+  },
+  todayContainer: {
+    backgroundColor: theme.colors.primary,
+  },
+  dayName: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginBottom: 4,
+  },
+  dayNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.textSecondary,
+  },
+  todayText: {
+    color: 'white',
+  },
+  checkMark: {
+    position: 'absolute',
+    bottom: -6,
+    backgroundColor: 'white',
+    borderRadius: 10,
+  },
+  backgroundShapes: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
+  shapeSvg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  scrollView: {
+    flex: 1,
+    zIndex: 2,
+  },
+  gradientBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  weekNavigator: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  weekNavButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: theme.colors.surface,
   },
 });
 

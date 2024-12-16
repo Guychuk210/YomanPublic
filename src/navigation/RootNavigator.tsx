@@ -8,6 +8,7 @@ import Register from '../screens/Register';
 import TabNavigator from './TabNavigator';
 import AfterRecord from '../screens/AfterRecord';
 import DiaryView from '../screens/DiaryView';
+import Memory from '../screens/Memory';
 import { theme } from '../styles/theme';
 
 console.log("I'm in the RootNavigator file");
@@ -28,6 +29,7 @@ const RootNavigator = () => {
           <Stack.Screen name="Register" component={Register} />
           <Stack.Screen name="MainApp" component={TabNavigator} />
           <Stack.Screen name="AfterRecord" component={AfterRecord} />
+          <Stack.Screen name="Memory" component={Memory} options={{ headerShown: false }} />
           <Stack.Screen 
             name="DiaryView" 
             component={DiaryView}
@@ -35,7 +37,7 @@ const RootNavigator = () => {
               headerShown: true,
               title: 'Diary Entry',
               headerStyle: {
-                backgroundColor: theme.colors.background,
+                backgroundColor: theme.colors.secondary,
               },
               headerTintColor: theme.colors.text,
               headerTitleStyle: {

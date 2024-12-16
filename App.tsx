@@ -1,13 +1,29 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-import React from 'react';
+import { StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import RootNavigator from './src/navigation/RootNavigator';
-
+import { loadFonts } from './src/utils/loadFonts';
 
 export default function App() {
-  return (
-   <RootNavigator />
-  );
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    async function prepare() {
+      try {
+        await loadFonts();
+        setFontsLoaded(true);
+      } catch (e) {
+        console.warn('Error loading fonts:', e);
+      }
+    }
+    prepare();
+  }, []);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
+  return <RootNavigator />;
 }
 
 const styles = StyleSheet.create({

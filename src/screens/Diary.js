@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Animated, TextInput, Alert, Keyboard } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Animated, TextInput, Alert, Keyboard, ActivityIndicator, Easing, Platform } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { collection, query, orderBy, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
-import { useNavigation } from '@react-navigation/native';
+
 import { RectButton } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { GradientBackground } from '../components/GradientBackground';
 
-const Diary = () => {
+const Diary = ({ navigation }) => {
   // State management
   const [entries, setEntries] = useState([]);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
@@ -20,8 +21,10 @@ const Diary = () => {
   const [editingId, setEditingId] = useState(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [originalTitle, setOriginalTitle] = useState('');
-  const navigation = useNavigation();
   const [activeSwipeRef, setActiveSwipeRef] = useState(null);
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const entriesPerPage = 10;
 
   // Initialize animation value based on initial view mode
   const [toggleAnimation] = useState(new Animated.Value(viewMode === 'list' ? 0 : 1));
@@ -106,21 +109,42 @@ const Diary = () => {
   const ViewToggle = () => {
     const togglePosition = toggleAnimation.interpolate({
       inputRange: [0, 1],
-      outputRange: [2, 38], // Make sure these values match your toggle width
+      outputRange: Platform.OS === 'ios' ? [2, 44] : [2, 42],
     });
+
+    const handleToggle = () => {
+      const newMode = viewMode === 'list' ? 'calendar' : 'list';
+      setViewMode(newMode);
+      
+      toggleAnimation.stopAnimation();
+      
+      if (Platform.OS === 'ios') {
+        Animated.timing(toggleAnimation, {
+          toValue: newMode === 'list' ? 0 : 1,
+          duration: 300,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
+        }).start();
+      } else {
+        Animated.timing(toggleAnimation, {
+          toValue: newMode === 'list' ? 0 : 1,
+          duration: 250,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+        }).start();
+      }
+    };
 
     return (
       <View style={styles.toggleContainer}>
         <TouchableOpacity 
-          style={styles.toggle}
-          activeOpacity={1}
-          onPress={() => {
-            const newMode = viewMode === 'list' ? 'calendar' : 'list';
-            setViewMode(newMode);
-            animateToggle(newMode === 'list' ? 0 : 1);
-          }}
+          style={[
+            styles.toggle,
+            Platform.OS === 'ios' && styles.toggleIOS
+          ]}
+          activeOpacity={0.8}
+          onPress={handleToggle}
         >
-          {/* Background icons */}
           <View style={styles.toggleIcons}>
             <Ionicons 
               name="list-outline" 
@@ -134,11 +158,13 @@ const Diary = () => {
             />
           </View>
           
-          {/* Animated slider */}
           <Animated.View 
             style={[
               styles.toggleSlider,
-              { transform: [{ translateX: togglePosition }] }
+              Platform.OS === 'ios' && styles.toggleSliderIOS,
+              { 
+                transform: [{ translateX: togglePosition }],
+              }
             ]}
           />
         </TouchableOpacity>
@@ -218,18 +244,49 @@ const Diary = () => {
     </View>
   );
 
+  // Calculate paginated entries
+  const paginatedEntries = useMemo(() => {
+    return entries.slice(0, page * entriesPerPage);
+  }, [entries, page]);
+
+  // Handle load more
+  const handleLoadMore = () => {
+    if (paginatedEntries.length < entries.length) {
+      setPage(prev => prev + 1);
+    }
+  };
+
   // List view component
   const ListView = () => (
-    <FlatList
-      data={entries}
-      renderItem={renderItem}
-      keyExtractor={item => item.id}
-      contentContainerStyle={styles.listContainer}
-      onRefresh={fetchEntries}
-      refreshing={false}
-      keyboardShouldPersistTaps="handled"
-      removeClippedSubviews={false}
-    />
+    <>
+      <View style={styles.headerContainer}>
+        <Text style={styles.subtitle}>
+          Here are your {Math.min(entriesPerPage, entries.length)} last entries. 
+          {entries.length > entriesPerPage ? ' Scroll down to see more.' : ''}
+        </Text>
+      </View>
+      <FlatList
+        data={paginatedEntries}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContainer}
+        onRefresh={fetchEntries}
+        refreshing={false}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews={false}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() => (
+          isLoadingMore ? (
+            <ActivityIndicator 
+              size="small" 
+              color={theme.colors.primary} 
+              style={styles.loadingMore}
+            />
+          ) : null
+        )}
+      />
+    </>
   );
 
   // Function to update entry title
@@ -463,28 +520,22 @@ const Diary = () => {
   // Main render
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>My Diary</Text>
-        <View style={styles.headerControls}>
-          {viewMode === 'list' && <SortButton />}
-          <ViewToggle />
+      <GradientBackground />
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.title}>My Diary</Text>
+          <View style={styles.headerControls}>
+            {viewMode === 'list' && <SortButton />}
+            <ViewToggle />
+          </View>
         </View>
-      </View>
 
-      {viewMode === 'list' ? (
-        <FlatList
-          data={entries}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContainer}
-          onRefresh={fetchEntries}
-          refreshing={false}
-          keyboardShouldPersistTaps="handled"
-          removeClippedSubviews={false}
-        />
-      ) : (
-        <CalendarView />
-      )}
+        {viewMode === 'list' ? (
+          <ListView />
+        ) : (
+          <CalendarView />
+        )}
+      </View>
     </View>
   );
 };
@@ -492,7 +543,10 @@ const Diary = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+  },
+  content: {
+    flex: 1,
+    zIndex: 2,
   },
   header: {
     flexDirection: 'row',
@@ -500,46 +554,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: 40,
+    backgroundColor: 'transparent'
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: theme.colors.text,
+    fontFamily: theme.fonts.bold,
   },
   toggleContainer: {
     alignItems: 'center',
   },
   toggle: {
-    width: 76,
-    height: 38,
-    borderRadius: 19,
+    width: 80,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#F0F0F0',
     padding: 2,
     position: 'relative',
+    overflow: 'hidden',
+  },
+  toggleIOS: {
+    height: 38,
+    padding: 3,
   },
   toggleIcons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     height: '100%',
     zIndex: 1,
   },
   toggleSlider: {
     position: 'absolute',
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.5,
+    elevation: 2,
+    zIndex: 2,
+  },
+  toggleSliderIOS: {
+    width: 32,
+    height: 32,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 2.5,
   },
   calendarContainer: {
     flex: 1,
@@ -551,9 +623,9 @@ const styles = StyleSheet.create({
   entryCard: {
     backgroundColor: '#FFF9F0',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     marginBottom: 16,
-    marginHorizontal: 2,
+    marginHorizontal: '5%',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -577,11 +649,13 @@ const styles = StyleSheet.create({
     color: '#2C3E50',
     flex: 1,
     marginRight: 8,
+    fontFamily: theme.fonts.semiBold,
   },
   entryDetails: {
     fontSize: 14,
     color: '#7F8C8D',
     fontStyle: 'italic',
+    fontFamily: theme.fonts.light,
   },
   selectedDateContainer: {
     marginTop: 20,
@@ -661,6 +735,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerContainer: {
+    padding: theme.spacing.medium,
+    backgroundColor: 'transparent',
+  },
+  subtitle: {
+    fontSize: theme.fontSize.small,
+    textAlign: 'center',
+    color: theme.colors.textSecondary,
+    marginBottom: 0,
+    marginTop: 0,
+    fontFamily: theme.fonts.medium,
+  },
+  loadingMore: {
+    paddingVertical: theme.spacing.medium,
+  },
+  listContainer: {
+    paddingBottom: theme.spacing.xl,
+  }
 });
 
 export default Diary;

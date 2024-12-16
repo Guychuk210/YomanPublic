@@ -1,16 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { theme } from '../styles/theme';
 import { Audio } from 'expo-av';
-//import { useRouter } from 'expo-router';
-//import { transcribeAudio } from '../services/openai';
+import Animated, { 
+  useAnimatedStyle, 
+  withSpring,
+  withRepeat,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { GradientBackground } from '../components/GradientBackground';
 import OpenAI from 'openai';
 
 const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.68:5000';
+const LOCAL_URL = 'http://192.168.10.119:5000';
 const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
-//const API_URL = LOCAL_URL;
 
 const Record = ({ navigation }) => {
   const [isRecording, setIsRecording] = useState(false);
@@ -19,9 +23,70 @@ const Record = ({ navigation }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
   
-  
-  
-useEffect(() => {
+  // Create wave animations (fixed number of hooks)
+  const wave1Scale = useSharedValue(1);
+  const wave1Opacity = useSharedValue(0.2);
+  const wave2Scale = useSharedValue(1);
+  const wave2Opacity = useSharedValue(0.15);
+  const wave3Scale = useSharedValue(1);
+  const wave3Opacity = useSharedValue(0.1);
+
+  const waves = [
+    { scale: wave1Scale, opacity: wave1Opacity },
+    { scale: wave2Scale, opacity: wave2Opacity },
+    { scale: wave3Scale, opacity: wave3Opacity }
+  ];
+
+  useEffect(() => {
+    if (isRecording) {
+      waves.forEach((wave, index) => {
+        wave.scale.value = withRepeat(
+          withSpring(1.5 + (index * 0.2), {
+            damping: 2,
+            stiffness: 80,
+            mass: 0.5 + (index * 0.2),
+            duration: 2000 + (index * 500)
+          }),
+          -1,
+          true
+        );
+        wave.opacity.value = withRepeat(
+          withSpring(0.3 - (index * 0.05), {
+            damping: 2,
+            stiffness: 80
+          }),
+          -1,
+          true
+        );
+      });
+    } else {
+      waves.forEach(wave => {
+        wave.scale.value = withSpring(1);
+        wave.opacity.value = withSpring(0);
+      });
+    }
+  }, [isRecording]);
+
+  // Pre-create animated styles
+  const waveStyle1 = useAnimatedStyle(() => ({
+    transform: [{ scale: wave1Scale.value }],
+    opacity: wave1Opacity.value
+  }));
+
+  const waveStyle2 = useAnimatedStyle(() => ({
+    transform: [{ scale: wave2Scale.value }],
+    opacity: wave2Opacity.value
+  }));
+
+  const waveStyle3 = useAnimatedStyle(() => ({
+    transform: [{ scale: wave3Scale.value }],
+    opacity: wave3Opacity.value
+  }));
+
+  const waveStyles = [waveStyle1, waveStyle2, waveStyle3];
+
+  // Timer effect
+  useEffect(() => {
     let interval;
     if (isRecording) {
       interval = setInterval(() => {
@@ -30,7 +95,6 @@ useEffect(() => {
     }
     return () => clearInterval(interval);
   }, [isRecording]);
-
 
   const startRecording = async () => {
     try {
@@ -144,39 +208,59 @@ useEffect(() => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.recordingInfo}>
+      <GradientBackground />
+      
+      <View style={styles.topSection}>
         <Text style={styles.timerText}>
           {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
         </Text>
+        <Text style={styles.statusText}>
+          {isProcessing 
+            ? 'Processing your thoughts...' 
+            : isRecording 
+              ? 'Recording your story' 
+              : 'Ready to listen'}
+        </Text>
       </View>
-      
-      <TouchableOpacity 
-        style={[
-          styles.recordButton, 
-          isRecording && styles.recording,
-          isProcessing && styles.processing
-        ]}
-        onPress={handleRecordPress}
-        disabled={isProcessing}
-      >
-        <View style={[
-          styles.recordButtonInner, 
-          isRecording && styles.stopButton,
-          isProcessing && styles.processingInner
-        ]} />
-      </TouchableOpacity>
-      
-      <Text style={styles.recordingText}>
-        {isProcessing 
-          ? 'Processing your entry...' 
-          : isRecording 
-            ? 'Tap to stop' 
-            : 'Tap to start recording'}
-      </Text>
 
-      <Text style={styles.transcriptText}>
-        {transcript && `Transcript: ${transcript}`}
-      </Text>
+      <View style={styles.waveContainer}>
+        {isRecording && waveStyles.map((animatedStyle, index) => (
+          <Animated.View 
+            key={index}
+            style={[
+              styles.wave,
+              animatedStyle,
+              { position: 'absolute' }
+            ]} 
+          />
+        ))}
+      </View>
+
+      <View style={styles.bottomSection}>
+        <TouchableOpacity 
+          style={[
+            styles.recordButton, 
+            isRecording && styles.recording,
+            isProcessing && styles.processing
+          ]}
+          onPress={handleRecordPress}
+          disabled={isProcessing}
+        >
+          <View style={[
+            styles.recordButtonInner, 
+            isRecording && styles.stopButton,
+            isProcessing && styles.processingInner
+          ]} />
+        </TouchableOpacity>
+        
+        <Text style={styles.hintText}>
+          {isProcessing 
+            ? 'Just a moment...' 
+            : isRecording 
+              ? 'Tap to finish' 
+              : 'Tap to start'}
+        </Text>
+      </View>
     </View>
   );
 };
@@ -185,42 +269,61 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    padding: theme.spacing.large,
+  },
+  topSection: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: 50,
+  },
+  timerText: {
+    fontSize: 64,
+    fontWeight: '200',
+    color: theme.colors.text,
+    letterSpacing: 2,
+    fontFamily: theme.fonts.light,
+  },
+  statusText: {
+    fontSize: theme.fontSize.normal,
+    color: theme.colors.textSecondary,
+    marginTop: 10,
+    fontFamily: theme.fonts.medium,
+  },
+  waveContainer: {
+    flex: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  recordingInfo: {
-    alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+  wave: {
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: theme.colors.primary,
+    opacity: 0.2,
   },
-  timerText: {
-    fontSize: 48,
-    fontWeight: '300',
-    color: theme.colors.text,
-    letterSpacing: 2,
+  bottomSection: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingBottom: 50,
   },
   recordButton: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    ...theme.shadows.medium,
   },
   recordButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: theme.colors.fire,
+  },
+  recording: {
+    transform: [{scale: 1.1}],
   },
   stopButton: {
     borderRadius: 8,
@@ -229,20 +332,12 @@ const styles = StyleSheet.create({
   processing: {
     opacity: 0.7,
   },
-  processingInner: {
-    opacity: 0.5,
-  },
-  recordingText: {
-    marginTop: theme.spacing.large,
-    fontSize: theme.fontSize.normal,
+  hintText: {
+    marginTop: 20,
+    fontSize: theme.fontSize.small,
     color: theme.colors.textSecondary,
-    fontWeight: '500',
-  },
-  transcriptText: {
-    marginTop: theme.spacing.large,
-    padding: theme.spacing.medium,
-    color: theme.colors.text,
-  },
+    fontFamily: theme.fonts.regular,
+  }
 });
 
 export default Record;

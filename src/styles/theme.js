@@ -23,6 +23,11 @@ export const theme = {
       border: '#D7CCC8',       // soft brown border
       success: '#2E7D32',      // forest green
       danger: '#C62828',       // deep red
+      warning: '#FFBB33',      // Yellow
+      // Add gradient colors
+      gradientStart: '#E0EAFC',
+      gradientMiddle: '#CFDEF3',
+      gradientEnd: '#F8F9FF',
     },
     
     spacing: {
@@ -73,5 +78,14 @@ export const theme = {
       large: 16,
       xl: 24,
       round: 999,
+    },
+    
+    fonts: {
+      medium: 'Montserrat-Medium',
+      semiBold: 'Montserrat-SemiBold',
+      bold: 'Montserrat-Bold',
+      light: 'Montserrat-Light',
+      italic: 'Montserrat-Italic',
+      black: 'Montserrat-Black',
     },
   };
