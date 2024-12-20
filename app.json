@@ -2,6 +2,7 @@
   "expo": {
     "name": "Yoman",
     "slug": "Yoman",
+    "owner": "diaryai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { GradientBackground } from '../components/GradientBackground';
 
 const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.119:5000';
+const LOCAL_URL = 'http://192.168.10.141:5000';
 const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
 
 const Memory = ({ navigation, route }) => {
@@ -93,7 +93,10 @@ const Memory = ({ navigation, route }) => {
         {isLoading ? (
           <ActivityIndicator size="large" color={theme.colors.primary} />
         ) : (
-          <ScrollView style={styles.memoryContainer}>
+          <ScrollView 
+            style={styles.memoryContainer}
+            contentContainerStyle={styles.memoryContent}
+          >
             {isEditing ? (
               <TextInput
                 style={styles.memoryInput}
@@ -135,7 +138,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.small,
   },
   title: {
-    fontSize: theme.fontSize.large,
+    fontSize: theme.fontSize.sub,
     fontWeight: 'bold',
     color: theme.colors.text,
   },
@@ -155,7 +158,10 @@ const styles = StyleSheet.create({
   },
   memoryContainer: {
     flex: 1,
+  },
+  memoryContent: {
     padding: theme.spacing.medium,
+    paddingBottom: theme.spacing.xl,
   },
   memoryText: {
     fontSize: theme.fontSize.normal,

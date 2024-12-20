@@ -12,7 +12,7 @@ import { collection, addDoc, serverTimestamp, getDoc, doc, setDoc } from 'fireba
 import { GradientBackground } from '../components/GradientBackground';
 
 const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.119:5000';
+const LOCAL_URL = 'http://192.168.10.141:5000';
 const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
 //const API_URL = LOCAL_URL;
 

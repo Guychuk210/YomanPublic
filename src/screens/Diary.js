@@ -410,96 +410,134 @@ const Diary = ({ navigation }) => {
   }, []);
 
   // Memoize the renderItem function
-  const renderItem = useCallback(({ item }) => (
-    <Swipeable
-      ref={ref => {
-        if (ref && item.id === editingId) {
-          setActiveSwipeRef(ref);
-        }
-      }}
-      renderRightActions={(progress, dragX) => 
-        renderRightActions(progress, dragX, item)
+  const renderItem = useCallback(({ item }) => {
+    const isEditing = editingId === item.id;
+
+    const handlePress = () => {
+      if (!isEditing) {
+        navigation.navigate('DiaryView', {
+          title: item.title,
+          date: item.date,
+          timeOfDay: item.timeOfDay,
+          diaryEntry: item.generatedEntry,
+          createdAt: item.createdAt
+        });
       }
-      rightThreshold={-80}
-      overshootRight={false}  // Prevent full swipe
-    >
-      <TouchableOpacity 
-        style={styles.entryCard}
-        onPress={() => {
-          if (editingId) {
-            setEditingId(null);
-            setEditingTitle(originalTitle);
-          } else {
-            navigation.navigate('DiaryView', {
-              id: item.id,
-              title: item.title || 'Untitled Entry',
-              date: item.date,
-              timeOfDay: item.timeOfDay,
-              diaryEntry: item.generatedEntry,
-              createdAt: item.createdAt,
-            });
-          }
-        }}
+    };
+
+    const handleEditPress = () => {
+      setEditingId(item.id);
+      setEditingTitle(item.title);
+      setOriginalTitle(item.title);
+    };
+
+    const handleEditSubmit = async () => {
+      try {
+        if (editingTitle.trim() === originalTitle) {
+          setEditingId(null);
+          return;
+        }
+
+        const newTitle = editingTitle.trim();
+        const entryId = item.id;
+
+        // Immediately update local state
+        setEntries(prevEntries => 
+          prevEntries.map(entry => 
+            entry.id === entryId ? { ...entry, title: newTitle } : entry
+          )
+        );
+        setEditingId(null);
+
+        // Update Firebase in the background
+        try {
+          const userId = auth.currentUser?.uid;
+          if (!userId) throw new Error('No user logged in');
+
+          const entryRef = doc(db, 'users', userId, 'diaries', entryId);
+          await updateDoc(entryRef, {
+            title: newTitle
+          });
+        } catch (error) {
+          // If Firebase update fails, revert the local change
+          console.error('Error updating title:', error);
+          setEntries(prevEntries => 
+            prevEntries.map(entry => 
+              entry.id === entryId ? { ...entry, title: originalTitle } : entry
+            )
+          );
+          Alert.alert(
+            'Error', 
+            'Failed to save changes. Please try again.'
+          );
+        }
+      } catch (error) {
+        console.error('Error in edit submit:', error);
+        Alert.alert('Error', 'Something went wrong');
+      }
+    };
+
+    const handleEditCancel = () => {
+      setEditingId(null);
+      setEditingTitle('');
+    };
+
+    return (
+      <Swipeable
+        enabled={!isEditing}
+        renderRightActions={(progress, dragX) => renderRightActions(progress, dragX, item)}
+        rightOpenValue={-100}
       >
-        <View style={styles.entryContent}>
-          {editingId === item.id ? (
-            // Edit mode
-            <View style={styles.editContainer}>
-              <TextInput
-                style={styles.editInput}
-                value={editingTitle}
-                onChangeText={text => setEditingTitle(text)}
-                onBlur={() => {
-                  setEditingId(null);
-                  setEditingTitle(originalTitle);
-                }}
-                autoFocus
-                returnKeyType="done"
-              />
-              <TouchableOpacity 
-                onPress={(e) => {
-                  e.stopPropagation();
-                  if (editingTitle.trim() !== '') {
-                    updateEntryTitle(item.id, editingTitle);
-                    setOriginalTitle('');
-                  }
-                  setEditingId(null);
-                }}
-                style={styles.checkIcon}
-              >
-                <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            // View mode
-            <View style={styles.titleContainer}>
-              <Text 
-                style={styles.entryTitle}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {item.title || 'Untitled Entry'}
+        <TouchableOpacity 
+          onPress={handlePress}
+          activeOpacity={0.7}
+        >
+          <View style={styles.entryCard}>
+            <View style={styles.entryContent}>
+              {isEditing ? (
+                <View style={styles.editContainer}>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editingTitle}
+                    onChangeText={setEditingTitle}
+                    autoFocus
+                    onBlur={handleEditCancel}
+                    onSubmitEditing={handleEditSubmit}
+                  />
+                  <TouchableOpacity 
+                    onPress={handleEditSubmit}
+                    style={styles.checkButton}
+                  >
+                    <Ionicons 
+                      name="checkmark-circle" 
+                      size={24} 
+                      color={theme.colors.primary}
+                      style={styles.checkIcon}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.titleContainer}>
+                  <Text style={styles.entryTitle}>{item.title}</Text>
+                  <TouchableOpacity onPress={handleEditPress}>
+                    <Ionicons 
+                      name="pencil" 
+                      size={20} 
+                      color={theme.colors.textSecondary}
+                      style={styles.editIcon}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+              <Text style={styles.entryDetails}>
+                {item.dayOfWeek} • {item.timeOfDay}
               </Text>
-              <TouchableOpacity 
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setEditingId(item.id);
-                  setEditingTitle(item.title || '');
-                  setOriginalTitle(item.title || '');
-                }}
-                style={styles.editIcon}
-              >
-                <Ionicons name="pencil" size={16} color={theme.colors.primary} />
-              </TouchableOpacity>
             </View>
-          )}
-          <Text style={styles.entryDetails}>
-            {item.dayOfWeek} {item.timeOfDay} • {item.date}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    </Swipeable>
-  ), [editingId, editingTitle, originalTitle, navigation]);
+          </View>
+        </TouchableOpacity>
+      </Swipeable>
+    );
+  }, [editingId, editingTitle, navigation]);
 
   // Sort button component
   const SortButton = () => (
@@ -727,7 +765,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: 'transparent',
   },
   deleteButtonContent: {
     width: '100%',

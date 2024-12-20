@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Keyboard } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, Keyboard, Clipboard, Alert } from 'react-native';
 import { theme } from '../styles/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 const DiaryView = ({ route }) => {
   const { date, timeOfDay, diaryEntry, createdAt } = route.params;
@@ -27,8 +28,20 @@ const DiaryView = ({ route }) => {
     // Here you can add logic to save the title to your database
   };
 
+  const handleCopyText = async () => {
+    try {
+      await Clipboard.setString(diaryEntry);
+      Alert.alert('Success', 'Entry copied to clipboard');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy text');
+    }
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+    >
       <View style={styles.diaryPage}>
         {/* Title Section */}
         <View style={styles.titleSection}>
@@ -49,18 +62,27 @@ const DiaryView = ({ route }) => {
             </TouchableOpacity>
           )}
           
-          <View style={styles.dateContainer}>
-            <Text style={styles.date}>
-              {date} • {formatTime(createdAt)}
-            </Text>
-            <Text style={styles.timeOfDay}>{timeOfDay}</Text>
+          <View style={styles.metadataContainer}>
+            <View style={styles.dateContainer}>
+              <Text style={styles.date}>
+                {date} • {formatTime(createdAt)}
+              </Text>
+              <Text style={styles.timeOfDay}>{timeOfDay}</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={handleCopyText}
+              style={styles.copyButton}
+            >
+              <Ionicons name="copy-outline" size={20} color={theme.colors.primary} />
+              <Text style={styles.copyButtonText}>Copy</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Decorative Line */}
         <View style={styles.divider} />
 
-        {/* Entry Content */}
+        {/* Entry Content with Copy Button */}
         <View style={styles.contentContainer}>
           <Text style={styles.entryText}>{diaryEntry}</Text>
         </View>
@@ -73,6 +95,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: theme.spacing.xl,
   },
   diaryPage: {
     margin: 20,
@@ -110,6 +136,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.primary,
   },
+  metadataContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 15,
+    marginTop: 5,
+  },
   dateContainer: {
     alignItems: 'center',
   },
@@ -139,6 +172,20 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     color: '#34495E',
     paddingHorizontal: 10,
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: theme.colors.backgroundLight,
+    ...theme.shadows.small,
+  },
+  copyButtonText: {
+    marginLeft: 4,
+    color: theme.colors.primary,
+    fontSize: theme.fontSize.small,
+    fontWeight: '500',
   },
 });
 
