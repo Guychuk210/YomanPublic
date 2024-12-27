@@ -6,6 +6,7 @@ import { theme } from '../styles/theme';
 import { GradientBackground } from '../components/GradientBackground';
 import * as FileSystem from 'expo-file-system';
 import { Audio } from 'expo-av';
+import * as DocumentPicker from 'expo-document-picker';
 
 const RENDER_URL = 'https://yoman-server.onrender.com';
 const LOCAL_URL = 'http://192.168.1.78:5000';
@@ -127,6 +128,77 @@ const Record = ({ navigation }) => {
     }
   };
 
+  const handleUpload = async () => {
+    try {
+      setIsProcessing(true);
+      
+      // Pick an audio file
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['audio/*'],
+        copyToCacheDirectory: true
+      });
+
+      if (result.canceled) {
+        setIsProcessing(false);
+        return;
+      }
+
+      const uri = result.assets[0].uri;
+      console.log("[Client] Selected audio file:", uri);
+
+      // Process the file similar to recording
+      await processAudioFile(uri);
+      
+    } catch (error) {
+      console.error("Upload error:", error);
+      Alert.alert('Upload Error', 'Failed to upload audio file');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const processAudioFile = async (uri) => {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      console.log("[Client] Audio file info:", {
+        size: fileInfo.size,
+        exists: fileInfo.exists,
+        uri: uri
+      });
+
+      const formData = new FormData();
+      formData.append('audioFile', {
+        uri: uri,
+        type: 'audio/mpeg', // Generic audio type
+        name: 'upload.mp3'
+      });
+      
+      const serverUrl = `${API_URL}/transcribe`;
+      console.log('[Client] Sending request to:', serverUrl);
+
+      const response = await fetch(serverUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.transcript) {
+        navigation.navigate('AfterRecord', { transcript: data.transcript });
+      }
+    } catch (error) {
+      console.error("Error processing audio file:", error);
+      Alert.alert('Transcription Error', 'Failed to transcribe audio');
+    }
+  };
+
   const handleIconPress = (pageId) => {
     if (pageId === 'record') {
       if (isRecording) {
@@ -136,6 +208,8 @@ const Record = ({ navigation }) => {
       }
     } else if (pageId === 'write') {
       navigation.navigate('AfterRecord', { transcript: '' });
+    } else if (pageId === 'upload') {
+      handleUpload();
     }
   };
 
