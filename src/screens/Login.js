@@ -30,10 +30,10 @@ const Login = ({ navigation }) => {
       alert('Please enter both email and password');
       return;
     }
-
     setLoading(true);
     try {
       // try to sign in with firebase
+      console.log("i'm trying to login");
       await signInWithEmailAndPassword(auth, email, password);
       navigation.replace('MainApp');
     } catch (error) {
