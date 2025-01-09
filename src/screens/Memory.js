@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { theme } from '../styles/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { GradientBackground } from '../components/GradientBackground';
+import { API_URL } from '../config/variables';
 
-const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.141:5000';
-const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
+// const RENDER_URL = 'https://yoman-server.onrender.com';
+// const LOCAL_URL = 'http://192.168.10.141:5000';
+// const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
 
 const Memory = ({ navigation, route }) => {
   const { assistantId, created } = route.params;

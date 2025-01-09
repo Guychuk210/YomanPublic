@@ -7,10 +7,9 @@ import { GradientBackground } from '../components/GradientBackground';
 import * as FileSystem from 'expo-file-system';
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
-
-const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.1.78:5000';
-const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
+import { auth, db } from '../config/firebase';
+import { serverTimestamp, addDoc, collection } from 'firebase/firestore';
+import { API_URL } from '../config/variables';
 
 const Record = ({ navigation }) => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,70 +60,56 @@ const Record = ({ navigation }) => {
     }
   };
 
-  const stopRecording = async () => {
+  const handleStopRecording = async () => {
     try {
-      setIsRecording(false);
+      if (!recording) {
+        console.error('No recording to stop');
+        return;
+      }
+
       setIsProcessing(true);
-      console.log("Stopping recording");
-
-      const status = await recording.getStatusAsync();
-      console.log("Recording duration:", status.durationMillis);
-
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
-      console.log("stopRecording, uri:", uri);
-      setRecording(null);
 
-      await processRecording(uri);
-      console.log("Recording processed");
-      setRecording(null);
-      setTimer(0);
-    } catch (err) {
-      Alert.alert('Failed to stop recording', err.message);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const processRecording = async (uri) => {
-    try {
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      console.log("[Client] Audio file info:", {
-        size: fileInfo.size,
-        exists: fileInfo.exists,
-        uri: uri
+      // Create initial Firestore entry first
+      const userId = auth.currentUser?.uid;
+      const entryRef = await addDoc(collection(db, 'users', userId, 'diaries'), {
+        status: 'draft',
+        createdAt: serverTimestamp()
+      });
+      
+      // Navigate to WritingStyle immediately
+      navigation.navigate('WritingStyle', {
+        entryId: entryRef.id
       });
 
+      // Start transcription in background
       const formData = new FormData();
       formData.append('audioFile', {
-        uri: uri,
+        uri,
         type: 'audio/m4a',
         name: 'recording.m4a'
       });
-      
-      const serverUrl = `${API_URL}/transcribe`;
-      console.log('[Client] Sending request to:', serverUrl);
 
-      const response = await fetch(serverUrl, {
+      // Fire and forget - don't await this
+      fetch(`${API_URL}/transcribe`, {
         method: 'POST',
         body: formData,
         headers: {
           'Content-Type': 'multipart/form-data',
-        },
+          'entry-id': entryRef.id,
+          'user-id': userId
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.transcript) {
-        navigation.navigate('AfterRecord', { transcript: data.transcript });
-      }
     } catch (error) {
-      console.error("Error processing recording:", error);
-      Alert.alert('Transcription Error', 'Failed to transcribe audio');
+      console.error('Error:', error);
+      Alert.alert('Error', 'Failed to process recording');
+    } finally {
+      setIsProcessing(false);
+      setRecording(null);
+      setIsRecording(false);
+      setTimer(0);
     }
   };
 
@@ -202,7 +187,8 @@ const Record = ({ navigation }) => {
   const handleIconPress = (pageId) => {
     if (pageId === 'record') {
       if (isRecording) {
-        stopRecording();
+        setIsRecording(false);
+        handleStopRecording();
       } else {
         startRecording();
       }
@@ -219,21 +205,21 @@ const Record = ({ navigation }) => {
       title: 'Write',
       icon: 'pencil',
       description: 'Write your thoughts',
-      color: '#4ECDC4' // Mint
+      color: 'transparent'
     },
     {
       id: 'record',
       title: 'Record',
       icon: 'mic',
       description: 'Record your thoughts',
-      color: '#FF6B6B' // Coral Red
+      color: 'transparent'
     },
     {
       id: 'upload',
       title: 'Upload',
       icon: 'cloud-upload',
       description: 'Upload audio file',
-      color: '#45B7D1' // Sky Blue
+      color: 'transparent'
     }
   ];
 
@@ -245,7 +231,7 @@ const Record = ({ navigation }) => {
   const getIconScale = (index) => {
     return pageOffset.interpolate({
       inputRange: [index - 1, index, index + 1],
-      outputRange: [0.2, 1.5, 0.2],
+      outputRange: [0.2, 3, 0.2],
       extrapolate: 'clamp'
     });
   };
@@ -335,13 +321,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 60,
     gap: 8,
+    //position: 'absolute',
+    top: '20%'
   },
   indicator: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: theme.colors.textSecondary,
-    opacity: 0.3,
+    opacity: 0.3,    
   },
   indicatorActive: {
     opacity: 1,
@@ -355,23 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 30,
     opacity: 0.9,
-  },
-  iconInnerCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
+  },  
   pageTitle: {
     fontSize: theme.fontSize.xlarge,
     color: theme.colors.text,
@@ -389,6 +361,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     zIndex: 1,
+    paddingTop: 20
   },
   timerText: {
     fontSize: 48,

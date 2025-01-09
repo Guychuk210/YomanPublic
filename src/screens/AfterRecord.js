@@ -10,11 +10,7 @@ import BottomSheet, {
 import { db, auth } from '../config/firebase';
 import { collection, addDoc, serverTimestamp, getDoc, doc, setDoc } from 'firebase/firestore';
 import { GradientBackground } from '../components/GradientBackground';
-
-const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.141:5000';
-const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
-//const API_URL = LOCAL_URL;
+import { API_URL } from '../config/variables';
 
 const DIARY_STYLES = [
   {

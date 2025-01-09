@@ -10,6 +10,9 @@ import AfterRecord from '../screens/AfterRecord';
 import DiaryView from '../screens/DiaryView';
 import Memory from '../screens/Memory';
 import { theme } from '../styles/theme';
+import WritingStyle from 'screens/WritingStyle';
+import Summary from 'screens/Summary';
+import LoadingScreen from '../screens/LoadingScreen';
 
 console.log("I'm in the RootNavigator file");
 
@@ -29,6 +32,9 @@ const RootNavigator = () => {
           <Stack.Screen name="Register" component={Register} />
           <Stack.Screen name="MainApp" component={TabNavigator} />
           <Stack.Screen name="AfterRecord" component={AfterRecord} />
+          <Stack.Screen name="WritingStyle" component={WritingStyle} />
+          <Stack.Screen name="Summary" component={Summary} />
+          <Stack.Screen name="LoadingScreen" component={LoadingScreen} options={{ headerShown: false }}/>
           <Stack.Screen name="Memory" component={Memory} options={{ headerShown: false }} />
           <Stack.Screen 
             name="DiaryView" 

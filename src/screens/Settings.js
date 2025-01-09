@@ -8,11 +8,7 @@ import { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { GradientBackground } from '../components/GradientBackground';
-
-const RENDER_URL = 'https://yoman-server.onrender.com';
-const LOCAL_URL = 'http://192.168.10.141:5000';
-const API_URL = __DEV__ ? LOCAL_URL : RENDER_URL;
-//const API_URL = LOCAL_URL; // or use appropriate URL based on environment
+//import { API_URL } from '../config/variables';
 
 const Settings = ({ navigation }) => {
   
@@ -21,14 +17,30 @@ const Settings = ({ navigation }) => {
 
   useEffect(() => {
     const loadUserData = async () => {
-      const user = auth.currentUser;
-      if (user) {
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          console.log('No user logged in');
+          return;
+        }
+
         setUserEmail(user.email);
         
-        // Fetch assistantId from Firestore
+        // Fetch assistantId from Firestore with proper error handling
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const currentAssistantId = userDoc.data()?.assistantId;
-        setAssistantId(currentAssistantId);
+        if (!userDoc.exists()) {
+          console.log('User document not found');
+          return;
+        }
+
+        const userData = userDoc.data();
+        const currentAssistantId = userData?.assistantId;
+        console.log('Retrieved assistantId:', currentAssistantId); // Debug log
+        setAssistantId(currentAssistantId || null);
+
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        Alert.alert('Error', 'Failed to load user data');
       }
     };
 
@@ -48,7 +60,12 @@ const Settings = ({ navigation }) => {
   const handleShowMemory = async () => {
     try {
       const user = auth.currentUser;
-      if (!user || !assistantId) {
+      if (!user) {
+        Alert.alert("Error", "No user logged in");
+        return;
+      }
+
+      if (!assistantId) {
         Alert.alert("No Memory", "The assistant hasn't learned anything about you yet.");
         return;
       }
